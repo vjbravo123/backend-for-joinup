@@ -10,21 +10,41 @@ export class AuthService {
   ) {}
 
   async syncUser(firebaseUser: any, nameFromClient?: string) {
-    // 1. Check if user already exists in DB
+    // 1. Try to find the user by their exact Firebase UID
     let user = await this.userModel.findOne({ firebaseUid: firebaseUser.uid });
 
-    // 2. If not, this is a new signup! Create the user.
     if (!user) {
-      user = await this.userModel.create({
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email || undefined,
-        phone: firebaseUser.phone_number || undefined,
-        // Use name from frontend (for new phone/email signups) or fallback to Firebase Google name
-        name: nameFromClient || firebaseUser.name || 'New User',
-      });
+      // FIX: Add ": any[]" so TypeScript knows this array accepts objects
+      const orConditions: any[] =[]; 
+      
+      if (firebaseUser.email) orConditions.push({ email: firebaseUser.email });
+      if (firebaseUser.phone_number) orConditions.push({ phone: firebaseUser.phone_number });
+
+      if (orConditions.length > 0) {
+        user = await this.userModel.findOne({ $or: orConditions });
+      }
+
+      if (user) {
+        // MERGE ACCOUNTS: Update their existing MongoDB record with the new Firebase UID
+        user.firebaseUid = firebaseUser.uid;
+        
+        // If they didn't have a name before, grab the Google name
+        if (!user.name || user.name === 'New User') {
+          user.name = nameFromClient || firebaseUser.name || user.name;
+        }
+        await user.save();
+      } else {
+        // COMPLETELY NEW USER: Create a new record
+        user = await this.userModel.create({
+          firebaseUid: firebaseUser.uid,
+          email: firebaseUser.email || undefined,
+          phone: firebaseUser.phone_number || undefined,
+          name: nameFromClient || firebaseUser.name || 'New User',
+        });
+      }
     }
 
-    // Return the user data to be stored in Redux
+    // Return the data to React Native Redux
     return {
       id: user._id.toString(),
       firebaseUid: user.firebaseUid,
