@@ -1,14 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-
+import { initializeFirebase } from './config/firebase.config';
+import 'dotenv/config';
 async function bootstrap() {
+  initializeFirebase(); // 🔥 initialize firebase here
+
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS so your React Native app can talk to it
   app.enableCors();
 
-  // Enable global validation for DTOs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const port = process.env.PORT || 3000;
