@@ -10,12 +10,10 @@ export class AuthService {
   ) {}
 
   async syncUser(firebaseUser: any, nameFromClient?: string) {
-    // 1. Try to find the user by their exact Firebase UID
     let user = await this.userModel.findOne({ firebaseUid: firebaseUser.uid });
 
     if (!user) {
-      // FIX: Add ": any[]" so TypeScript knows this array accepts objects
-      const orConditions: any[] =[]; 
+      const orConditions: any[] =[];
       
       if (firebaseUser.email) orConditions.push({ email: firebaseUser.email });
       if (firebaseUser.phone_number) orConditions.push({ phone: firebaseUser.phone_number });
@@ -25,26 +23,31 @@ export class AuthService {
       }
 
       if (user) {
-        // MERGE ACCOUNTS: Update their existing MongoDB record with the new Firebase UID
+        // MERGE ACCOUNTS
         user.firebaseUid = firebaseUser.uid;
-        
-        // If they didn't have a name before, grab the Google name
         if (!user.name || user.name === 'New User') {
           user.name = nameFromClient || firebaseUser.name || user.name;
         }
         await user.save();
       } else {
-        // COMPLETELY NEW USER: Create a new record
-        user = await this.userModel.create({
+        // COMPLETELY NEW USER: Build payload dynamically to avoid passing null/undefined
+        const newUserPayload: any = {
           firebaseUid: firebaseUser.uid,
-          email: firebaseUser.email || undefined,
-          phone: firebaseUser.phone_number || undefined,
           name: nameFromClient || firebaseUser.name || 'New User',
-        });
+        };
+
+        // Only add email/phone to payload if they actually exist
+        if (firebaseUser.email) {
+          newUserPayload.email = firebaseUser.email;
+        }
+        if (firebaseUser.phone_number) {
+          newUserPayload.phone = firebaseUser.phone_number;
+        }
+
+        user = await this.userModel.create(newUserPayload);
       }
     }
 
-    // Return the data to React Native Redux
     return {
       id: user._id.toString(),
       firebaseUid: user.firebaseUid,
