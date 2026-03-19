@@ -1,3 +1,4 @@
+// src/modules/activities/schemas/activity.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
@@ -6,39 +7,40 @@ export type ActivityDocument = HydratedDocument<Activity>;
 @Schema({ timestamps: true })
 export class Activity {
   @Prop({ required: true })
-  title!: string;
+  title: string;
 
   @Prop({ required: true })
-  category!: string;
+  category: string;
 
   @Prop({ required: true })
-  location!: string;
+  description: string; // Added for detail page
+
+  @Prop({ default: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18' })
+  image: string; // Added for detail page
 
   @Prop({ required: true })
-  time!: string; // e.g., 'Today 6:30 AM'
+  location: string;
+
+  @Prop({ required: true })
+  time: string; 
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
+  participants: Types.ObjectId[]; // List of user IDs
 
   @Prop({ default: 1 })
-  participantsJoined!: number;
+  participantsJoined: number;
 
   @Prop({ required: true })
-  maxParticipants!: number;
+  maxParticipants: number;
 
   @Prop({ default: 'Free' })
-  price!: string;
+  price: string;
 
-  // reference to User
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  host!: Types.ObjectId;
+  host: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Chat' }) // Link to the chat
+  chat: Types.ObjectId;
 }
 
 export const ActivitySchema = SchemaFactory.createForClass(Activity);
-
-// Include virtual id instead of _id
-ActivitySchema.set('toJSON', {
-  virtuals: true,
-  transform: (_doc: unknown, ret: any) => {
-    ret.id = ret._id;
-    delete ret._id;
-    delete ret.__v;
-  },
-});
