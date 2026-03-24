@@ -1,10 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { initializeFirebase } from './config/firebase.config';
 import 'dotenv/config';
 async function bootstrap() {
-  initializeFirebase(); // 🔥 initialize firebase here
 
   const app = await NestFactory.create(AppModule);
 
