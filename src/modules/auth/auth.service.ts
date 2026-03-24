@@ -1,3 +1,4 @@
+// src/auth/auth.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -9,55 +10,50 @@ export class AuthService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
-  async syncUser(firebaseUser: any, nameFromClient?: string) {
-  // 1. Try to find by Firebase UID first
-  let user = await this.userModel.findOne({ firebaseUid: firebaseUser.uid });
+  async syncUser(supabaseUser: any, nameFromClient?: string) {
+    // 1. Try to find by Supabase ID
+    let user = await this.userModel.findOne({ supabaseId: supabaseUser.id });
 
-  if (!user) {
-    // 2. If not found by UID, try to find by Email or Phone to merge accounts
-    const orConditions: any[] = [];
-    if (firebaseUser.email) orConditions.push({ email: firebaseUser.email });
-    if (firebaseUser.phone_number) orConditions.push({ phone: firebaseUser.phone_number });
+    if (!user) {
+      // 2. Try to merge via Email or Phone if they exist
+      const orConditions: any[] = [];
+      if (supabaseUser.email) orConditions.push({ email: supabaseUser.email });
+      if (supabaseUser.phone) orConditions.push({ phone: supabaseUser.phone });
 
-    if (orConditions.length > 0) {
-      user = await this.userModel.findOne({ $or: orConditions });
-    }
-
-    if (user) {
-      // Found existing user via email/phone, link the Firebase UID
-      user.firebaseUid = firebaseUser.uid;
-      // Only update name if the current one is placeholder
-      if (!user.name || user.name === 'New User') {
-        user.name = nameFromClient || firebaseUser.name || user.name;
+      if (orConditions.length > 0) {
+        user = await this.userModel.findOne({ $or: orConditions });
       }
-      await user.save();
-    } else {
-      // 3. Truly new user
-      const newUserPayload: any = {
-        firebaseUid: firebaseUser.uid,
-        name: nameFromClient || firebaseUser.name || 'New User',
-        avatar: firebaseUser.picture || 'https://randomuser.me/api/portraits/men/32.jpg'
-      };
 
-      if (firebaseUser.email) newUserPayload.email = firebaseUser.email;
-      if (firebaseUser.phone_number) newUserPayload.phone = firebaseUser.phone_number;
-
-      user = await this.userModel.create(newUserPayload);
+      if (user) {
+        // Link existing record to this new Supabase ID
+        user.supabaseId = supabaseUser.id;
+        if (!user.name || user.name === 'New User') {
+          user.name = nameFromClient || supabaseUser.user_metadata?.full_name || user.name;
+        }
+        await user.save();
+      } else {
+        // 3. Create brand new user
+        user = await this.userModel.create({
+          supabaseId: supabaseUser.id,
+          email: supabaseUser.email,
+          phone: supabaseUser.phone,
+          name: nameFromClient || supabaseUser.user_metadata?.full_name || 'New User',
+          avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
+        });
+      }
     }
-  }
 
-  // Return consistent object
-  return {
-    id: user._id.toString(),
-    firebaseUid: user.firebaseUid,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    avatar: user.avatar,
-    bio: user.bio,
-    interests: user.interests,
-    joinedCount: user.joinedCount,
-    hostedCount: user.hostedCount,
-  };
-}
+    return {
+      id: user._id.toString(),
+      supabaseId: user.supabaseId,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      avatar: user.avatar,
+      bio: user.bio,
+      interests: user.interests,
+      joinedCount: user.joinedCount,
+      hostedCount: user.hostedCount,
+    };
+  }
 }
