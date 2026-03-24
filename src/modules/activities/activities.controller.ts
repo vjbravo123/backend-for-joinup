@@ -9,39 +9,36 @@ import {
 } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { CreateActivityDto } from './dto/create-activity.dto';
-import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { SupabaseAuthGuard } from '../auth/supabase-auth.guard'; // Updated Guard
 
 @Controller('activities')
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}
 
-  // Secure this route!
-  @UseGuards(FirebaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard) // Use Supabase Guard
   @Post()
-  create(@Body() createActivityDto: CreateActivityDto, @Req() req: any) {
-    // req.user.sub contains the logged-in user's ObjectId
-    const hostId = req.user.sub;
-
-    return this.activitiesService.create(createActivityDto, hostId);
+  async create(@Body() createActivityDto: CreateActivityDto, @Req() req: any) {
+    // Supabase user ID is in req.user.id
+    const supabaseId = req.user.id;
+    return this.activitiesService.create(createActivityDto, supabaseId);
   }
 
-  // Protect the GET routes as well so only logged in users can view the feed
-  @UseGuards(FirebaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Get()
   findAll() {
     return this.activitiesService.findAll();
   }
 
-  @UseGuards(FirebaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.activitiesService.findOne(id);
   }
 
-  @UseGuards(FirebaseAuthGuard)
+  @UseGuards(SupabaseAuthGuard)
   @Post(':id/join')
   async join(@Param('id') id: string, @Req() req: any) {
-    const userId = req.user.sub; // From Firebase Guard
-    return this.activitiesService.joinActivity(id, userId);
+    const supabaseId = req.user.id; // Use .id
+    return this.activitiesService.joinActivity(id, supabaseId);
   }
 }
