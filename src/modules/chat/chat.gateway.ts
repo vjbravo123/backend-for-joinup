@@ -28,24 +28,32 @@ export class ChatGateway implements OnGatewayConnection {
     console.log(`User joined chat: ${chatId}`);
   }
 
-  @SubscribeMessage('sendMessage')
-  async handleMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { chatId: string; senderId: string; text: string },
-  ) {
+@SubscribeMessage('sendMessage')
+async handleMessage(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() data: { chatId: string; supabaseId: string; text: string },
+) {
+  try {
+    console.log('📩 Received message via socket:', data);
+
     const message = await this.chatService.sendMessage(
-      data.senderId,
+      data.supabaseId, // This must match the field name sent from frontend
       data.chatId,
       data.text,
     );
 
-    // Emit the message to everyone in the room (including sender)
+    // Broadcast to the room
     this.server.to(data.chatId).emit('newMessage', message);
     
-    // Also emit an update to the chat list (for the 'last message' preview)
+    // Update chat list preview
     this.server.emit('chatUpdated', {
         chatId: data.chatId,
         lastMessage: message
     });
+  } catch (error) {
+    console.error('❌ Error in socket sendMessage:', error.message);
+    // Optionally emit an error back to the sender
+    client.emit('error', { message: 'Failed to send message' });
   }
+}
 }
