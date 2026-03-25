@@ -40,9 +40,10 @@ export class ActivitiesService {
       participantsJoined: 1,
     });
 
-    // 2. Create the associated Group Chat
+      // 2. Create the associated Group Chat
     const newChat = await this.chatModel.create({
       type: 'group',
+      name: createActivityDto.title, // Pass the activity name here
       activity: newActivity._id,
       members: [userId],
       lastMessage: { text: 'Group created', createdAt: new Date() },

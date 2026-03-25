@@ -52,18 +52,17 @@ export class ChatService {
     return chat;
   }
 
-  // Send a message
+
+ // Your existing sendMessage is already great for Sockets!
   async sendMessage(supabaseId: string, chatId: string, text: string) {
     const user = await this.getMongoUser(supabaseId);
     
-    // 1. Create the message
     const message = await this.messageModel.create({
       chatId: new Types.ObjectId(chatId),
       sender: user._id,
       text,
     });
 
-    // 2. Update the Chat's last message and timestamp
     await this.chatModel.findByIdAndUpdate(chatId, {
       lastMessage: {
         text,
@@ -72,7 +71,7 @@ export class ChatService {
       },
     });
 
-    return message;
+    return message.populate('sender', 'name avatar');
   }
 
   // Get messages for a specific chat

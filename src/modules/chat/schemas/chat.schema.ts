@@ -8,6 +8,9 @@ export class Chat {
   @Prop({ type: String, enum: ['direct', 'group'], required: true })
   type: string;
 
+   @Prop() // Added for Group Chat names
+  name?: string;
+  
   // Optional: Only present if type is 'group'
   @Prop({ type: Types.ObjectId, ref: 'Activity', required: false })
   activity?: Types.ObjectId;
