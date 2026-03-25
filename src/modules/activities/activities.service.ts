@@ -59,57 +59,62 @@ export class ActivitiesService {
     };
   }
 
-  async joinActivity(activityId: string, supabaseId: string): Promise<any> {
-    const user = await this.getMongoUser(supabaseId);
-    const userId = user._id as Types.ObjectId;
 
-    const activity = await this.activityModel.findById(activityId);
-    if (!activity) throw new NotFoundException('Activity not found');
+async joinActivity(activityId: string, supabaseId: string): Promise<any> {
+  // 1. Get Mongo User ID from Supabase ID
+  const user = await this.getMongoUser(supabaseId);
+  const userId = user._id as Types.ObjectId;
 
-    // Validation checks
-    if (activity.participantsJoined >= activity.maxParticipants) {
-      throw new BadRequestException('Activity is full');
-    }
+  // 2. Find the activity first to check status
+  const activity = await this.activityModel.findById(activityId);
+  if (!activity) throw new NotFoundException('Activity not found');
 
-    const alreadyJoined = activity.participants.some(
-      (p) => p.toString() === userId.toString(),
-    );
+  // 3. Validation: Check if already joined
+  const alreadyJoined = activity.participants.some(
+    (p) => p.toString() === userId.toString(),
+  );
 
-    if (alreadyJoined) {
-      // If already joined, just return the data with chatId so frontend can navigate
-      return {
-        ...activity.toObject(),
-        chatId: activity.chat,
-      };
-    }
-
-    // 4. Update Activity (Atomic)
-    const updatedActivity = await this.activityModel.findByIdAndUpdate(
-      activityId,
-      {
-        $addToSet: { participants: userId },
-        $inc: { participantsJoined: 1 },
-      },
-      { new: true },
-    );
-
-    if (!updatedActivity) throw new NotFoundException('Activity not found');
-
-    // 5. Update Chat (Add user to members array)
-    // We look for the chat by the activity link
-    const chat = await this.chatModel.findOneAndUpdate(
-      { activity: activityId },
-      { $addToSet: { members: userId } },
-      { new: true }
-    );
-
-    // 6. Return updated activity + chatId for the frontend 'result.chatId'
+  if (alreadyJoined) {
+    // If already joined, return existing data so frontend can still navigate to chat
     return {
-      ...updatedActivity.toObject(),
-      chatId: chat?._id || updatedActivity.chat,
+      ...activity.toObject(),
+      chatId: activity.chat, 
     };
   }
 
+  // 4. Validation: Check if activity is full
+  if (activity.participantsJoined >= activity.maxParticipants) {
+    throw new BadRequestException('Activity is full');
+  }
+
+  // 5. Update Activity (Atomic Update)
+  // $addToSet ensures no duplicate IDs, $inc increments the counter safely
+  const updatedActivity = await this.activityModel.findByIdAndUpdate(
+    activityId,
+    {
+      $addToSet: { participants: userId },
+      $inc: { participantsJoined: 1 },
+    },
+    { new: true }, // Returns the modified document
+  ).populate('host', 'name avatar');
+
+  if (!updatedActivity) throw new NotFoundException('Activity not found');
+
+  // 6. Update the associated Chat
+  // Add the user to the chat members array
+  const chat = await this.chatModel.findByIdAndUpdate(
+    updatedActivity.chat,
+    { $addToSet: { members: userId } },
+    { new: true }
+  );
+
+  // 7. Return combined data
+  // We explicitly return chatId so the frontend result.chatId is valid
+  return {
+    ...updatedActivity.toObject(),
+    chatId: chat?._id || updatedActivity.chat,
+  };
+}
   async findAll(): Promise<Activity[]> {
     return this.activityModel
       .find()

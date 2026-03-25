@@ -42,3 +42,4 @@ export class ActivitiesController {
     return this.activitiesService.joinActivity(id, supabaseId);
   }
 }
+
