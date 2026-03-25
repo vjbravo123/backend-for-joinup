@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Activity, ActivityDocument } from './schemas/activity.schema';
@@ -10,18 +14,22 @@ export class ActivitiesService {
   constructor(
     @InjectModel(Activity.name) private activityModel: Model<ActivityDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel('Chat') private chatModel: Model<any>
+    @InjectModel('Chat') private chatModel: Model<any>,
   ) {}
 
   // Helper to find Mongo User by Supabase ID
   private async getMongoUser(supabaseId: string) {
     // Note: Ensure your User schema has a field 'supabaseId'
     const user = await this.userModel.findOne({ supabaseId });
-    if (!user) throw new NotFoundException('User profile not found in database');
+    if (!user)
+      throw new NotFoundException('User profile not found in database');
     return user;
   }
 
-  async create(createActivityDto: CreateActivityDto, supabaseId: string): Promise<Activity> {
+  async create(
+    createActivityDto: CreateActivityDto,
+    supabaseId: string,
+  ): Promise<Activity> {
     const user = await this.getMongoUser(supabaseId);
     const userId = user._id;
 
@@ -34,11 +42,15 @@ export class ActivitiesService {
     });
 
     // 2. Create the associated Group Chat
+    // Inside create()
     const newChat = await this.chatModel.create({
+      type: 'group', // Ensure type is set
       activity: newActivity._id,
       members: [userId],
-      lastMessage: { text: 'Group created', createdAt: new Date() }
+      lastMessage: { text: 'Group created', createdAt: new Date() },
     });
+
+    // joinActivity remains largely the same, but ensure it checks if chat exists
 
     newActivity.chat = newChat._id;
     return newActivity.save();
@@ -58,7 +70,9 @@ export class ActivitiesService {
       throw new BadRequestException('Activity is full');
     }
 
-    const alreadyJoined = activity.participants.some(p => p.toString() === userId.toString());
+    const alreadyJoined = activity.participants.some(
+      (p) => p.toString() === userId.toString(),
+    );
     if (alreadyJoined) {
       throw new BadRequestException('Already joined');
     }
@@ -79,13 +93,16 @@ export class ActivitiesService {
   async findAll(): Promise<Activity[]> {
     return this.activityModel
       .find()
-      .populate('host', 'name avatar') 
+      .populate('host', 'name avatar')
       .sort({ createdAt: -1 })
       .exec();
   }
 
   async findOne(id: string): Promise<Activity> {
-    const activity = await this.activityModel.findById(id).populate('host', 'name avatar').exec();
+    const activity = await this.activityModel
+      .findById(id)
+      .populate('host', 'name avatar')
+      .exec();
     if (!activity) {
       throw new NotFoundException(`Activity with ID ${id} not found`);
     }

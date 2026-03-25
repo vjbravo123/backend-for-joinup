@@ -1,4 +1,3 @@
-// src/modules/chat/schemas/chat.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 
@@ -6,10 +5,14 @@ export type ChatDocument = HydratedDocument<Chat>;
 
 @Schema({ timestamps: true })
 export class Chat {
-  @Prop({ type: Types.ObjectId, ref: 'Activity', required: true })
-  activity: Types.ObjectId;
+  @Prop({ type: String, enum: ['direct', 'group'], required: true })
+  type: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
+  // Optional: Only present if type is 'group'
+  @Prop({ type: Types.ObjectId, ref: 'Activity', required: false })
+  activity?: Types.ObjectId;
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], required: true })
   members: Types.ObjectId[];
 
   @Prop({
@@ -18,8 +21,13 @@ export class Chat {
       sender: { type: Types.ObjectId, ref: 'User' },
       createdAt: { type: Date, default: Date.now },
     },
+    _id: false
   })
-  lastMessage: any;
+  lastMessage?: {
+    text: string;
+    sender: Types.ObjectId;
+    createdAt: Date;
+  };
 }
 
 export const ChatSchema = SchemaFactory.createForClass(Chat);

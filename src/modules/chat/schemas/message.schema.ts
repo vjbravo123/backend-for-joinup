@@ -1,9 +1,11 @@
-// src/modules/chat/schemas/message.schema.ts
-import { Prop, Schema } from '@nestjs/mongoose';
-import { Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+export type MessageDocument = HydratedDocument<Message>;
+
 @Schema({ timestamps: true })
 export class Message {
-  @Prop({ type: Types.ObjectId, ref: 'Chat', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Chat', required: true, index: true })
   chatId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -13,5 +15,7 @@ export class Message {
   text: string;
 
   @Prop({ default: 'text', enum: ['text', 'system'] })
-  type: string; // 'system' messages like "User joined the group"
+  type: string;
 }
+
+export const MessageSchema = SchemaFactory.createForClass(Message);
