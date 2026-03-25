@@ -9,6 +9,14 @@ export class CreateActivityDto {
   @IsString()
   category: string;
 
+  @IsNotEmpty() // ADD THIS
+  @IsString()
+  description: string;
+
+  @IsOptional() // ADD THIS (matching your schema)
+  @IsString()
+  image?: string;
+
   @IsNotEmpty()
   @IsString()
   location: string;
