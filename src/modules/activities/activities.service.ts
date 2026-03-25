@@ -14,21 +14,25 @@ export class ActivitiesService {
   constructor(
     @InjectModel(Activity.name) private activityModel: Model<ActivityDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
-    // Ensure 'Chat' is registered in your ActivitiesModule
-    @InjectModel('Chat') private chatModel: Model<any>, 
+    @InjectModel('Chat') private chatModel: Model<any>,
   ) {}
 
-  private async getMongoUser(supabaseId: string) {
+  // Helper to find Mongo User by Supabase ID
+  private async getMongoUser(supabaseId: string): Promise<UserDocument> {
     const user = await this.userModel.findOne({ supabaseId });
-    if (!user) throw new NotFoundException('User profile not found');
+    if (!user)
+      throw new NotFoundException('User profile not found in database');
     return user;
   }
 
-  async create(createActivityDto: CreateActivityDto, supabaseId: string) {
+  async create(
+    createActivityDto: CreateActivityDto,
+    supabaseId: string,
+  ): Promise<any> { // Changed return type to any to allow chatId injection
     const user = await this.getMongoUser(supabaseId);
-    const userId = user._id;
+    const userId = user._id as Types.ObjectId;
 
-    // 1. Initialize Activity
+    // 1. Create the Activity
     const newActivity = new this.activityModel({
       ...createActivityDto,
       host: userId,
@@ -44,42 +48,42 @@ export class ActivitiesService {
       lastMessage: { text: 'Group created', createdAt: new Date() },
     });
 
-    // 3. Link Chat to Activity and Save
+    // 3. Link Chat to Activity
     newActivity.chat = newChat._id;
     const savedActivity = await newActivity.save();
 
-    // Return with chatId for the frontend
+    // 4. Return activity + chatId so frontend navigation works
     return {
       ...savedActivity.toObject(),
       chatId: newChat._id,
     };
   }
 
-  async joinActivity(activityId: string, supabaseId: string) {
+  async joinActivity(activityId: string, supabaseId: string): Promise<any> {
     const user = await this.getMongoUser(supabaseId);
-    const userId = user._id;
+    const userId = user._id as Types.ObjectId;
 
     const activity = await this.activityModel.findById(activityId);
     if (!activity) throw new NotFoundException('Activity not found');
 
-    // Validation
+    // Validation checks
     if (activity.participantsJoined >= activity.maxParticipants) {
       throw new BadRequestException('Activity is full');
     }
 
-    const isAlreadyJoined = activity.participants.some(
+    const alreadyJoined = activity.participants.some(
       (p) => p.toString() === userId.toString(),
     );
 
-    if (isAlreadyJoined) {
-      // If already joined, just return the existing data so frontend can navigate
+    if (alreadyJoined) {
+      // If already joined, just return the data with chatId so frontend can navigate
       return {
         ...activity.toObject(),
         chatId: activity.chat,
       };
     }
 
-    // 4. Update Activity (Atomic update is safer)
+    // 4. Update Activity (Atomic)
     const updatedActivity = await this.activityModel.findByIdAndUpdate(
       activityId,
       {
@@ -89,29 +93,39 @@ export class ActivitiesService {
       { new: true },
     );
 
-    // 5. Update Chat (Add member)
-    // If for some reason activity.chat is missing, find it by activity ID
-    let chat = await this.chatModel.findOneAndUpdate(
+    if (!updatedActivity) throw new NotFoundException('Activity not found');
+
+    // 5. Update Chat (Add user to members array)
+    // We look for the chat by the activity link
+    const chat = await this.chatModel.findOneAndUpdate(
       { activity: activityId },
       { $addToSet: { members: userId } },
       { new: true }
     );
 
-    // Fallback: Create chat if it somehow didn't exist
-    if (!chat) {
-      chat = await this.chatModel.create({
-        type: 'group',
-        activity: activityId,
-        members: [...updatedActivity.participants],
-      });
-      updatedActivity.chat = chat._id;
-      await updatedActivity.save();
-    }
-
-    // Return the activity object PLUS the explicit chatId for the frontend
+    // 6. Return updated activity + chatId for the frontend 'result.chatId'
     return {
       ...updatedActivity.toObject(),
-      chatId: chat._id,
+      chatId: chat?._id || updatedActivity.chat,
     };
+  }
+
+  async findAll(): Promise<Activity[]> {
+    return this.activityModel
+      .find()
+      .populate('host', 'name avatar')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  async findOne(id: string): Promise<Activity> {
+    const activity = await this.activityModel
+      .findById(id)
+      .populate('host', 'name avatar')
+      .exec();
+    if (!activity) {
+      throw new NotFoundException(`Activity with ID ${id} not found`);
+    }
+    return activity;
   }
 }
