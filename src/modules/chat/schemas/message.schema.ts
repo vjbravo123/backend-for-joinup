@@ -16,6 +16,8 @@ export class Message {
 
   @Prop({ default: 'text', enum: ['text', 'system'] })
   type: string;
+   createdAt: Date;
+  updatedAt: Date;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

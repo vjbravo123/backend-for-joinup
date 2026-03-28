@@ -67,7 +67,8 @@ export class ChatService {
       lastMessage: {
         text,
         sender: user._id,
-        createdAt: new Date(),
+        // createdAt: new Date(),
+         createdAt: message.createdAt,
       },
     });
 
