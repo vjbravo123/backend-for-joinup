@@ -22,6 +22,11 @@ export class User {
   @Prop({ unique: true, sparse: true })
   email?: string;
 
+  // from OLD schema
+  @Prop({ unique: true, sparse: true })
+  phone?: string;
+
+  // from NEW schema
   @Prop()
   dob?: Date;
 
@@ -31,12 +36,15 @@ export class User {
   @Prop({ default: 'https://randomuser.me/api/portraits/men/32.jpg' })
   avatar: string;
 
+  // NEW schema multi image support
   @Prop({ type: [String], default: [] })
-  gallery: string[]; // Support for multiple images
+  gallery: string[];
 
+  // merged bio default (kept new version)
   @Prop({ default: 'New explorer' })
   bio: string;
 
+  // NEW schema profile fields
   @Prop()
   jobTitle?: string;
 
@@ -55,6 +63,7 @@ export class User {
   @Prop({ type: SocialLinks, default: {} })
   socialLinks: SocialLinks;
 
+  // common field
   @Prop({ type: [String], default: [] })
   interests: string[];
 
@@ -64,6 +73,7 @@ export class User {
   @Prop({ default: 0 })
   hostedCount: number;
 
+  // NEW schema
   @Prop({ default: false })
   isVerified: boolean;
 
