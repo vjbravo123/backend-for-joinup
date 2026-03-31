@@ -66,6 +66,9 @@ export class User {
   // common field
   @Prop({ type: [String], default: [] })
   interests: string[];
+  
+  @Prop({ default: false })
+  isSetupComplete: boolean;
 
   @Prop({ default: 0 })
   joinedCount: number;
