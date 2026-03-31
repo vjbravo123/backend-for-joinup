@@ -4,10 +4,17 @@ import { Document } from 'mongoose';
 
 export type UserDocument = User & Document;
 
+@Schema({ _id: false })
+class SocialLinks {
+  @Prop() instagram?: string;
+  @Prop() linkedin?: string;
+  @Prop() twitter?: string;
+}
+
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true, unique: true })
-  supabaseId: string; // Updated from firebaseUid
+  supabaseId: string;
 
   @Prop({ required: true })
   name: string;
@@ -15,14 +22,38 @@ export class User {
   @Prop({ unique: true, sparse: true })
   email?: string;
 
-  @Prop({ unique: true, sparse: true })
-  phone?: string;
+  @Prop()
+  dob?: Date;
+
+  @Prop({ enum: ['male', 'female', 'other', 'prefer_not_to_say'] })
+  gender?: string;
 
   @Prop({ default: 'https://randomuser.me/api/portraits/men/32.jpg' })
   avatar: string;
 
-  @Prop({ default: 'Always down for a weekend trek or a quick cricket match.' })
+  @Prop({ type: [String], default: [] })
+  gallery: string[]; // Support for multiple images
+
+  @Prop({ default: 'New explorer' })
   bio: string;
+
+  @Prop()
+  jobTitle?: string;
+
+  @Prop()
+  company?: string;
+
+  @Prop()
+  education?: string;
+
+  @Prop()
+  hometown?: string;
+
+  @Prop({ type: [String], default: [] })
+  languages: string[];
+
+  @Prop({ type: SocialLinks, default: {} })
+  socialLinks: SocialLinks;
 
   @Prop({ type: [String], default: [] })
   interests: string[];
@@ -32,6 +63,15 @@ export class User {
 
   @Prop({ default: 0 })
   hostedCount: number;
+
+  @Prop({ default: false })
+  isVerified: boolean;
+
+  @Prop({ default: 'free', enum: ['free', 'premium', 'gold'] })
+  membershipType: string;
+
+  @Prop({ default: 0 })
+  profileCompletion: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
